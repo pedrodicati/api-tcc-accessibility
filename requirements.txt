@@ -3,3 +3,5 @@ pydantic
 uvicorn
 python-multipart
 transformers~=4.44.0
+accelerate
+torch

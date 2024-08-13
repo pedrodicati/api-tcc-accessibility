@@ -11,6 +11,6 @@ services:
     environment:
       - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
     ports:
-      - 8878:8000
+      - 8000:8000
     env_file:
       - .env
