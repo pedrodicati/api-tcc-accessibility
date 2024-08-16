@@ -1,4 +1,5 @@
-FROM python:3.10.12-slim
+ARG PYTHON_VERSION=3.10.12
+FROM python:${PYTHON_VERSION}-slim
 
 COPY ./requirements.txt ./
 
