@@ -3,6 +3,8 @@ FROM python:${PYTHON_VERSION}-slim
 
 COPY ./requirements.txt ./
 
+RUN apt update && apt install -y ffmpeg
+
 RUN python -m pip install --upgrade pip
 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt

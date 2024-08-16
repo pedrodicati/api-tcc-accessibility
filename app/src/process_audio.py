@@ -15,7 +15,6 @@ class ProcessAudio:
 
         self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id,
-            low_cpu_mem_usage=True,
             use_safetensors=True,
         )
         self.model.to(device)
@@ -29,17 +28,13 @@ class ProcessAudio:
             device=device,
         )
 
-    def convert_bytes_to_numpy(self, audio_bytes: bytes) -> List[int]:
-
-        return np.frombuffer(audio_bytes, np.int16).flatten().astype(np.float32) / 32768.0 
-
     def transcribe(self, audio_or_file: Union[str, bytes]):
         if isinstance(audio_or_file, str):
             if not os.path.exists(audio_or_file):
                 raise FileNotFoundError(f"File not found: {audio_or_file}")
-            
+
             return self.pipe(audio_or_file)
         elif isinstance(audio_or_file, bytes):
-            audio = self.convert_bytes_to_numpy(audio_or_file)
+            return self.pipe(audio_or_file)
 
-            return self.pipe(audio)
+        raise ValueError("Invalid input type. Must be a file path or bytes object.")

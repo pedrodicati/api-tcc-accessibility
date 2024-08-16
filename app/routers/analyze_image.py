@@ -13,8 +13,8 @@ async def create_question_image(
     image_content = await image.read()
     audio_content = await audio.read()
 
-    transcriptions = audio_processor.transcribe(audio_content)
+    transcribed_audio = audio_processor.transcribe(audio_content)
 
     return {
-        "transcriptions": transcriptions,
+        "transcribed_audio": transcribed_audio,
     }
