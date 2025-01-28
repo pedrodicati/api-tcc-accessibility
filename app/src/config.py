@@ -8,7 +8,7 @@ def logger():
     logging.getLogger('urllib').setLevel(logging.ERROR)
     logging.getLogger('urllib3').setLevel(logging.ERROR)
 
-    LEVEL = "INFO"
+    LEVEL = "DEBUG"
 
     log_format = '%(asctime)s - %(levelname)s - %(filename)s[%(lineno)s] %(message)s'
     logger = logging.getLogger()

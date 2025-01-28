@@ -1,6 +1,10 @@
 ARG PYTHON_VERSION=3.10.12
 FROM python:${PYTHON_VERSION}-slim
 
+# enable use gpu
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
 COPY ./requirements.txt ./
 
 RUN apt update && apt install -y ffmpeg
