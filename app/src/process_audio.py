@@ -35,7 +35,7 @@ class AudioProcess:
         pipeline
             Instância de pipeline carregada pronta para inferência.
         """
-        
+
         if model_id in self.models:
             logging.info(
                 f"Modelo '{model_id}' já está carregado. Retornando instância existente."
@@ -52,7 +52,7 @@ class AudioProcess:
             use_safetensors=True,
         )
         model.to(self.device)
-        
+
         try:
             pipe = pipeline(
                 "automatic-speech-recognition",
@@ -63,22 +63,24 @@ class AudioProcess:
                 device=self.device,
             )
             self.models[model_id] = pipe
-            
+
             logging.info("Model Speech Recognitivo loaded successfully.")
-            
+
             return pipe
         except Exception as e:
             logging.error(f"Error loading model '{model_id}': {e}")
             raise RuntimeError(f"Failed to load model {model_id}. Error: {str(e)}")
 
-    def transcribe(self, audio_or_file: Union[str, bytes], model_id: Optional[str] = None) -> Dict[str, str]:
+    def transcribe(
+        self, audio_or_file: Union[str, bytes], model_id: Optional[str] = None
+    ) -> Dict[str, str]:
         if not isinstance(audio_or_file, str) and not isinstance(audio_or_file, bytes):
             raise ValueError("Audio must be a file path or bytes")
-        
+
         if isinstance(audio_or_file, str):
             if not os.path.exists(audio_or_file):
                 raise FileNotFoundError(f"File not found: {audio_or_file}")
-            
+
             audio_or_file = open(audio_or_file, "rb").read()
 
         # Define o modelo a ser usado

@@ -13,14 +13,17 @@ from src.process_image import ImageProcess
 
 log = logger()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         logging.info("Server Started")
 
         app.state.audio_processor = AudioProcess(model_id="openai/whisper-small")
-        app.state.image_processor = ImageProcess(default_model_id="llava-hf/llava-v1.6-mistral-7b-hf")
-        
+        app.state.image_processor = ImageProcess(
+            default_model_id="llava-hf/llava-v1.6-mistral-7b-hf"
+        )
+
         logging.info("Modelos carregados e armazenados em app.state.")
 
         yield
@@ -32,7 +35,7 @@ app = FastAPI(
     title="Question Image Upload",
     # dependencies=[Depends()] # add auth dependencies here,
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 origins = ["*"]
