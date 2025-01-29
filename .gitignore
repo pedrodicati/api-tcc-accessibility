@@ -167,4 +167,4 @@ cython_debug/
 .vscode/
 
 # other files
-test_curl.sh
+test_curl*.sh
