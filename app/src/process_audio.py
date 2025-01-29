@@ -87,4 +87,8 @@ class AudioProcess:
         chosen_model_id = model_id or self.default_model_id
         pipe = self.load_model(chosen_model_id)
 
-        return pipe(audio_or_file)
+        try:
+            return pipe(audio_or_file)
+        except Exception as e:
+            logging.error(f"Error transcribing audio: {e}")
+            raise RuntimeError(f"Failed to transcribe audio. Error: {str(e)}")
