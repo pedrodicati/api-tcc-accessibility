@@ -4,14 +4,16 @@ import os
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from routers import analyze_image
+from routers import analyze_image, set_model
 from src.config import logger
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 
 from src.process_audio import AudioProcess
 from src.process_image import ImageProcess
 
 log = logger()
+load_dotenv()
 
 
 @asynccontextmanager
@@ -19,10 +21,14 @@ async def lifespan(app: FastAPI):
     try:
         logging.info("Server Started")
 
-        app.state.audio_processor = AudioProcess(model_id="openai/whisper-small")
-        app.state.image_processor = ImageProcess(
-            default_model_id="llava-hf/llava-v1.6-mistral-7b-hf"
+        app.state.audio_processor = AudioProcess(
+            default_model_id="openai/whisper-small"
         )
+        # Model options:
+        # - Qwen/Qwen2.5-VL-7B-Instruct
+        # - llava-hf/llava-v1.6-mistral-7b-hf
+        # - meta-llama/Llama-3.2-11B-Vision-Instruct
+        app.state.image_processor = ImageProcess(model_id="Qwen/Qwen2.5-VL-7B-Instruct")
 
         logging.info("Modelos carregados e armazenados em app.state.")
 
@@ -49,7 +55,7 @@ app.add_middleware(
 )
 
 app.include_router(analyze_image.router, prefix="/api", tags=["Image/Audio Analysis"])
-
+app.include_router(set_model.router, prefix="/api", tags=["Model Configuration"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

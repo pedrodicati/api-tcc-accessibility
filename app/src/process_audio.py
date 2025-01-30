@@ -45,11 +45,13 @@ class AudioProcess:
         # Se não estiver carregado, criar uma nova pipeline
         logging.info(f"Carregando novo modelo: {model_id}")
 
-        processor = AutoProcessor.from_pretrained(model_id, language="en")
+        processor = AutoProcessor.from_pretrained(model_id)
 
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id,
             use_safetensors=True,
+            torch_dtype=self.torch_dtype,
+            low_cpu_mem_usage=True
         )
         model.to(self.device)
 
@@ -71,9 +73,21 @@ class AudioProcess:
             logging.error(f"Error loading model '{model_id}': {e}")
             raise RuntimeError(f"Failed to load model {model_id}. Error: {str(e)}")
 
-    def transcribe(
-        self, audio_or_file: Union[str, bytes], model_id: Optional[str] = None
-    ) -> Dict[str, str]:
+    def check_audio(self, audio_or_file) -> Union[str, bytes]:
+        """
+        Verifica se o áudio é uma string ou um arquivo e retorna o conteúdo do áudio.
+
+        Parâmetros:
+        -----------
+        audio_or_file : Union[str, bytes]
+            Áudio a ser transcrita.
+
+        Retorna:
+        --------
+        Union[str, bytes]
+            Conteúdo do áudio.
+        """
+
         if not isinstance(audio_or_file, str) and not isinstance(audio_or_file, bytes):
             raise ValueError("Audio must be a file path or bytes")
 
@@ -83,12 +97,19 @@ class AudioProcess:
 
             audio_or_file = open(audio_or_file, "rb").read()
 
+        return audio_or_file
+
+    def transcribe(
+        self, audio_or_file: Union[str, bytes], model_id: Optional[str] = None
+    ) -> Dict[str, str]:
+        audio = self.check_audio(audio_or_file)
+
         # Define o modelo a ser usado
         chosen_model_id = model_id or self.default_model_id
         pipe = self.load_model(chosen_model_id)
 
         try:
-            return pipe(audio_or_file)
+            return pipe(audio)
         except Exception as e:
             logging.error(f"Error transcribing audio: {e}")
             raise RuntimeError(f"Failed to transcribe audio. Error: {str(e)}")

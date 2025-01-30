@@ -23,8 +23,12 @@ async def create_question_image(
 
         # Descreve a imagem com base no texto transcrito
         image_text = image_processor.image_to_text(
-            image_or_file=image_content, question=transcribed_audio
+            image_or_file=image_content,
+            question=transcribed_audio,
         )
+
+        # todo: salvar imagem, audio e texto em disco para análise
+        # da pra fazer via middleware, ver depois
 
         return {
             "transcribed_audio": transcribed_audio,
