@@ -168,3 +168,5 @@ cython_debug/
 
 # other files
 test_curl*.sh
+processed_files/
+*.csv
