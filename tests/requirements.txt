@@ -1,0 +1,12 @@
+transformers
+torch
+datasets
+bert-score
+pandas
+tqdm
+psutil
+pynvml
+opencv-python
+Pillow
+nltk
+rouge
