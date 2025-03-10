@@ -15,7 +15,7 @@ from transformers import (
     MllamaForConditionalGeneration,
     AutoModelForImageTextToText,
     AutoProcessor,
-    BitsAndBytesConfig
+    BitsAndBytesConfig,
 )
 from qwen_vl_utils import process_vision_info
 from .ollama_process import OllamaProcess
@@ -105,7 +105,7 @@ class ImageProcess:
                 bnb_4bit_use_double_quant=True,
                 llm_int8_enable_fp32_cpu_offload=True,
             )
-            pass
+
         try:
             model_type = model_type or self.model_type
 
@@ -142,7 +142,9 @@ class ImageProcess:
                         max_memory={0: "6GiB"},
                     )
                 except Exception as e:
-                    logging.warning("Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct':")
+                    logging.warning(
+                        "Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct':"
+                    )
                     logging.warning(e)
 
                     warnings.warn(
@@ -209,13 +211,15 @@ class ImageProcess:
         """
 
         system_prompt = (
-            "Você é um assistente virtual projetado para auxiliar pessoas com deficiência visual "
-            "a compreenderem o ambiente ao seu redor, de forma clara e objetiva. A imagem fornecida "
-            "representa exatamente o que um usuário veria se pudesse enxergar. Sua tarefa é descrever "
-            "a cena de forma clara, precisa e acessível, respondendo também à pergunta feita pelo usuário. "
-            "Seja detalhado o suficiente para que ele possa construir uma imagem mental do que está ao seu redor, "
-            "porém evite descrições muito longas. Sinalize eventuais riscos e o que o usuário deve fazer para "
-            "evitá-los. Seja sempre educado e prestativo. Vamos lá!"
+            "Você é um assistente virtual projetado para ajudar pessoas com deficiência visual "
+            "a compreenderem o ambiente ao seu redor de forma clara, objetiva e fiel. Sua principal tarefa "
+            "é descrever com precisão o que está presente na imagem fornecida, destacando detalhes importantes "
+            "que permitam ao usuário construir uma imagem mental do ambiente. Seja conciso e evite descrições excessivamente longas. "
+            "Concentre-se em informações relevantes, como objetos, pessoas, expressões faciais, cores e posições. "
+            "Somente mencione riscos ou perigos se eles estiverem visíveis na imagem, explicando de forma direta "
+            "o que é o risco e, se necessário, o que o usuário pode fazer para evitá-lo. "
+            "Se não houver riscos, foque exclusivamente na descrição fiel da cena. "
+            "Mantenha sempre um tom educado, objetivo e prestativo."
         )
 
         chat = [
@@ -254,12 +258,12 @@ class ImageProcess:
         """
         Remove partes desnecessárias do texto gerado pelo modelo, incluindo
         tags de sistema e formatações extras.
-        
+
         Parâmetros:
         -----------
         output : str
             Texto gerado pelo modelo.
-        
+
         Retorna:
         --------
         str
@@ -288,7 +292,7 @@ class ImageProcess:
             raise ValueError("A imagem fornecida parece inválida ou vazia.")
 
         return image
-    
+
     def image_preprocess(self, image: Image.Image) -> Image.Image:
         """
         Pré-processa a imagem antes de passá-la para o modelo, realizando
@@ -365,7 +369,9 @@ class ImageProcess:
                         **inputs, max_new_tokens=max_new_tokens
                     )
                     generated_text = self.processor.decode(
-                        generate_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=True
+                        generate_ids[0],
+                        skip_special_tokens=True,
+                        clean_up_tokenization_spaces=True,
                     )
 
             elif self.model_id == "Qwen/Qwen2.5-VL-7B-Instruct":
@@ -379,7 +385,7 @@ class ImageProcess:
                     return_tensors="pt",
                 )
                 inputs = inputs.to(self.model.device)
-                
+
                 with torch.no_grad():
                     generated_ids = self.model.generate(
                         **inputs, max_new_tokens=max_new_tokens
@@ -402,7 +408,9 @@ class ImageProcess:
                         image, prompt, add_special_tokens=False, return_tensors="pt"
                     ).to(self.model.device)
 
-                    output = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+                    output = self.model.generate(
+                        **inputs, max_new_tokens=max_new_tokens
+                    )
                     generated_text = self.processor.decode(
                         output[0], skip_special_tokens=True
                     )

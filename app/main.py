@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         # - Qwen/Qwen2.5-VL-7B-Instruct
         # - llava-hf/llava-v1.6-mistral-7b-hf
         # - meta-llama/Llama-3.2-11B-Vision-Instruct
-        app.state.image_processor = ImageProcess(model_id="meta-llama/Llama-3.2-11B-Vision-Instruct")
+        app.state.image_processor = ImageProcess(model_id="Qwen/Qwen2.5-VL-7B-Instruct")
 
         logging.info("Modelos carregados e armazenados em app.state.")
 

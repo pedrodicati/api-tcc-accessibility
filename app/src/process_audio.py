@@ -51,7 +51,7 @@ class AudioProcess:
             model_id,
             use_safetensors=True,
             torch_dtype=self.torch_dtype,
-            low_cpu_mem_usage=True
+            low_cpu_mem_usage=True,
         )
         model.to(self.device)
 
