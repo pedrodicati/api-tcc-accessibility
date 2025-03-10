@@ -8,7 +8,6 @@ import warnings
 import traceback
 
 from PIL import Image
-from transformers import pipeline, BitsAndBytesConfig
 from transformers import (
     LlavaNextProcessor,
     LlavaNextForConditionalGeneration,
@@ -16,8 +15,10 @@ from transformers import (
     MllamaForConditionalGeneration,
     AutoModelForImageTextToText,
     AutoProcessor,
+    BitsAndBytesConfig,
 )
 from qwen_vl_utils import process_vision_info
+from .ollama_process import OllamaProcess
 
 from typing import Union, List, Dict, Optional, Tuple
 
@@ -55,6 +56,7 @@ class ImageProcess:
         self.torch_dtype = (
             torch.bfloat16 if torch.cuda.is_available() else torch.float32
         )
+        self.switch_ollama = False
 
         self.model_id = model_id
         self.model_type = model_type
@@ -103,7 +105,7 @@ class ImageProcess:
                 bnb_4bit_use_double_quant=True,
                 llm_int8_enable_fp32_cpu_offload=True,
             )
-            pass
+
         try:
             model_type = model_type or self.model_type
 
@@ -123,16 +125,35 @@ class ImageProcess:
                 )
                 self.model.to(self.device)
 
-            elif self.model_id == "alpindale/Llama-3.2-11B-Vision-Instruct":
-                self.processor = AutoProcessor.from_pretrained(self.model_id)
+            elif self.model_id == "meta-llama/Llama-3.2-11B-Vision-Instruct":
+                try:
+                    # erro adicionado pois a quantidade de memória para carregar o
+                    # llama 3.2 é muito grande, então forçamos um erro para carregar
+                    # o modelo via ollama, que é mais leve
+                    raise Exception("Erro forçado")
+                    self.processor = AutoProcessor.from_pretrained(self.model_id)
 
-                self.model = MllamaForConditionalGeneration.from_pretrained(
-                    self.model_id,
-                    torch_dtype=self.torch_dtype,
-                    device_map="auto",
-                    quantization_config=quantization_config,
-                    low_cpu_mem_usage=True,
-                )
+                    self.model = MllamaForConditionalGeneration.from_pretrained(
+                        self.model_id,
+                        torch_dtype=self.torch_dtype,
+                        device_map="auto",
+                        # quantization_config=quantization_config,
+                        low_cpu_mem_usage=True,
+                        max_memory={0: "6GiB"},
+                    )
+                except Exception as e:
+                    logging.warning(
+                        "Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct':"
+                    )
+                    logging.warning(e)
+
+                    warnings.warn(
+                        "Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct'. Usando método com o Ollama.",
+                    )
+
+                    self.model = OllamaProcess(model="llama3.2-vision")
+                    self.processor = None
+                    self.switch_ollama = True
 
             elif self.model_id == "Qwen/Qwen2.5-VL-7B-Instruct":
                 self.processor = AutoProcessor.from_pretrained(self.model_id)
@@ -190,13 +211,15 @@ class ImageProcess:
         """
 
         system_prompt = (
-            "Você é um assistente virtual projetado para auxiliar pessoas com deficiência visual "
-            "a compreenderem o ambiente ao seu redor, de forma clara e objetiva. A imagem fornecida "
-            "representa exatamente o que um usuário veria se pudesse enxergar. Sua tarefa é descrever "
-            "a cena de forma clara, precisa e acessível, respondendo também à pergunta feita pelo usuário. "
-            "Seja detalhado o suficiente para que ele possa construir uma imagem mental do que está ao seu redor, "
-            "porém evite descrições muito longas. Sinalize eventuais riscos e o que o usuário deve fazer para "
-            "evitá-los. Seja sempre educado e prestativo. Vamos lá!"
+            "Você é um assistente virtual projetado para ajudar pessoas com deficiência visual "
+            "a compreenderem o ambiente ao seu redor de forma clara, objetiva e fiel. Sua principal tarefa "
+            "é descrever com precisão o que está presente na imagem fornecida, destacando detalhes importantes "
+            "que permitam ao usuário construir uma imagem mental do ambiente. Seja conciso e evite descrições excessivamente longas. "
+            "Concentre-se em informações relevantes, como objetos, pessoas, expressões faciais, cores e posições. "
+            "Somente mencione riscos ou perigos se eles estiverem visíveis na imagem, explicando de forma direta "
+            "o que é o risco e, se necessário, o que o usuário pode fazer para evitá-lo. "
+            "Se não houver riscos, foque exclusivamente na descrição fiel da cena. "
+            "Mantenha sempre um tom educado, objetivo e prestativo."
         )
 
         chat = [
@@ -218,6 +241,10 @@ class ImageProcess:
             prompt = self.processor.apply_chat_template(
                 chat, tokenize=False, add_generation_prompt=True
             )
+        elif self.switch_ollama:
+            prompt = self.model.make_prompt(
+                prompt=question, image=image, system_prompt=system_prompt
+            )
         else:
             prompt = self.processor.apply_chat_template(
                 chat, add_generation_prompt=True
@@ -231,18 +258,19 @@ class ImageProcess:
         """
         Remove partes desnecessárias do texto gerado pelo modelo, incluindo
         tags de sistema e formatações extras.
-        
+
         Parâmetros:
         -----------
         output : str
             Texto gerado pelo modelo.
-        
+
         Retorna:
         --------
         str
             Texto limpo e pronto para exibição.
         """
         output = re.sub(r"<<SYS>>.*?<</SYS>>", "", output, flags=re.DOTALL).strip()
+        output = re.sub(r"system .*?assistant ", "", output, flags=re.DOTALL).strip()
         output = re.sub(r"\[INST\].*?\[/INST\]", "", output, flags=re.DOTALL).strip()
         output = re.sub(r"\s+([.,!?])", r"\1", output)
         output = output.replace("\n", " ").strip()
@@ -262,6 +290,28 @@ class ImageProcess:
 
         if image.size[0] == 0 or image.size[1] == 0:
             raise ValueError("A imagem fornecida parece inválida ou vazia.")
+
+        return image
+
+    def image_preprocess(self, image: Image.Image) -> Image.Image:
+        """
+        Pré-processa a imagem antes de passá-la para o modelo, realizando
+        redimensionamento e ajustes necessários.
+
+        Parâmetros:
+        -----------
+        image : Image.Image
+            Imagem a ser pré-processada.
+
+        Retorna:
+        --------
+        Image.Image
+            Imagem redimensionada e ajustada.
+        """
+        # Redimensiona a imagem para 512px de largura (mantendo a proporção)
+        new_width = 512
+        new_height = int((new_width / image.size[0]) * image.size[1])
+        image = image.resize((new_width, new_height))
 
         return image
 
@@ -298,6 +348,8 @@ class ImageProcess:
 
         image = self.check_image(image_or_file)
 
+        image = self.image_preprocess(image)
+
         # Monta o prompt
         prompt, chat = self.make_input_prompt(question, image)
         logging.info(f"Realizando inferência com o modelo '{self.model_id}'...")
@@ -317,7 +369,9 @@ class ImageProcess:
                         **inputs, max_new_tokens=max_new_tokens
                     )
                     generated_text = self.processor.decode(
-                        generate_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=True
+                        generate_ids[0],
+                        skip_special_tokens=True,
+                        clean_up_tokenization_spaces=True,
                     )
 
             elif self.model_id == "Qwen/Qwen2.5-VL-7B-Instruct":
@@ -331,7 +385,7 @@ class ImageProcess:
                     return_tensors="pt",
                 )
                 inputs = inputs.to(self.model.device)
-                
+
                 with torch.no_grad():
                     generated_ids = self.model.generate(
                         **inputs, max_new_tokens=max_new_tokens
@@ -346,15 +400,20 @@ class ImageProcess:
                         clean_up_tokenization_spaces=False,
                     )[0]
 
-            elif self.model_id == "alpindale/Llama-3.2-11B-Vision-Instruct":
-                inputs = self.processor(
-                    image, prompt, add_special_tokens=False, return_tensors="pt"
-                ).to(self.model.device)
+            elif self.model_id == "meta-llama/Llama-3.2-11B-Vision-Instruct":
+                if self.switch_ollama:
+                    generated_text = self.model.predict_model(prompt)
+                else:
+                    inputs = self.processor(
+                        image, prompt, add_special_tokens=False, return_tensors="pt"
+                    ).to(self.model.device)
 
-                output = self.model.generate(**inputs, max_new_tokens=30)
-                generated_text = self.processor.decode(
-                    output[0], skip_special_tokens=True
-                )
+                    output = self.model.generate(
+                        **inputs, max_new_tokens=max_new_tokens
+                    )
+                    generated_text = self.processor.decode(
+                        output[0], skip_special_tokens=True
+                    )
 
             else:
                 warnings.warn(

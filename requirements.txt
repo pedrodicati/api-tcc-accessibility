@@ -11,3 +11,4 @@ bitsandbytes~=0.45.1
 python-dotenv~=1.0.1
 qwen-vl-utils~=0.0.10
 torchvision~=0.20.1
+ollama~=0.4.7
