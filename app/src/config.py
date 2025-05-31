@@ -1,5 +1,6 @@
 import logging
 import sys
+from app.src.settings import settings # Import settings
 
 
 def logger():
@@ -9,7 +10,7 @@ def logger():
     logging.getLogger("urllib").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.ERROR)
 
-    LEVEL = "INFO"
+    LEVEL = settings.LOG_LEVEL.upper() # Use LOG_LEVEL from settings
 
     log_format = "%(asctime)s - %(levelname)s - %(filename)s[%(lineno)s] %(message)s"
     logger = logging.getLogger()
