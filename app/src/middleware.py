@@ -22,22 +22,22 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
     """
     Middleware for saving request files and response data to disk.
-    
+
     This middleware automatically captures uploaded image and audio files
     along with API responses for analysis and debugging purposes.
     """
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Process HTTP request and save relevant data to disk.
-        
+
         Parameters:
         -----------
         request : Request
             The incoming HTTP request.
         call_next : Callable
             The next middleware or endpoint handler.
-            
+
         Returns:
         --------
         Response
@@ -55,7 +55,7 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
 
         image: Optional[Any] = None
         audio: Optional[Any] = None
-        
+
         try:
             content_type = request.headers.get("content-type", "")
             if "multipart/form-data" in content_type:
@@ -63,9 +63,9 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                 image = form.get("image")
                 audio = form.get("audio")
 
-                image_filename = image.filename if image else 'Nenhuma'
-                audio_filename = audio.filename if audio else 'Nenhum'
-                
+                image_filename = image.filename if image else "Nenhuma"
+                audio_filename = audio.filename if audio else "Nenhum"
+
                 logging.info("Imagem recebida: %s", image_filename)
                 logging.info("Áudio recebido: %s", audio_filename)
             else:
@@ -90,10 +90,11 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                 audio_path = os.path.join(folder_path, "audio.wav")
                 with open(audio_path, "wb") as audio_file:
                     audio_file.write(audio_content)
-                    
+
                 audio_size = len(audio_content)
-                logging.info("Áudio salvo em: %s (tamanho: %d bytes)", 
-                           audio_path, audio_size)
+                logging.info(
+                    "Áudio salvo em: %s (tamanho: %d bytes)", audio_path, audio_size
+                )
 
                 # Salvar a imagem
                 image_content = await image.read()
@@ -103,10 +104,11 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                 image_path = os.path.join(folder_path, f"image{image_extension}")
                 with open(image_path, "wb") as image_file:
                     image_file.write(image_content)
-                    
+
                 image_size = len(image_content)
-                logging.info("Imagem salva em: %s (tamanho: %d bytes)", 
-                           image_path, image_size)
+                logging.info(
+                    "Imagem salva em: %s (tamanho: %d bytes)", image_path, image_size
+                )
 
                 # Salvar a resposta da API
                 response_body = b""
@@ -116,10 +118,13 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                 response_path = os.path.join(folder_path, "response.json")
                 with open(response_path, "wb") as response_file:
                     response_file.write(response_body)
-                    
+
                 response_size = len(response_body)
-                logging.info("Resposta salva em: %s (tamanho: %d bytes)", 
-                           response_path, response_size)
+                logging.info(
+                    "Resposta salva em: %s (tamanho: %d bytes)",
+                    response_path,
+                    response_size,
+                )
 
                 # Recriar a resposta para o cliente
                 response = Response(

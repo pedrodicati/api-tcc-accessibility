@@ -13,11 +13,11 @@ from typing import Any
 def logger() -> Any:
     """
     Configure and return a logger instance with console and file handlers.
-    
+
     Sets up logging configuration for the application, including handlers
     for both console output and file logging. Also configures log levels
     for external libraries to reduce noise.
-    
+
     Returns:
     --------
     Any
@@ -35,7 +35,6 @@ def logger() -> Any:
     app_logger = logging.getLogger()
     for handler in app_logger.handlers:
         app_logger.removeHandler(handler)
-    
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter(log_format))
     app_logger.addHandler(console_handler)

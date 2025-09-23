@@ -23,11 +23,11 @@ async def create_question_image(
 ) -> Dict[str, Any]:
     """
     Analyze an image based on an audio query.
-    
+
     This endpoint transcribes audio content to text and uses it as a query
     to generate a description of the uploaded image, helping visually
     impaired users understand visual content.
-    
+
     Parameters:
     -----------
     request : Request
@@ -36,12 +36,12 @@ async def create_question_image(
         The image file to be analyzed.
     audio : UploadFile
         The audio file containing the user's question.
-        
+
     Returns:
     --------
     Dict[str, Any]
         Dictionary containing the transcribed audio text and image description.
-        
+
     Raises:
     -------
     HTTPException

@@ -69,8 +69,9 @@ class ImageProcess:
         self.models = {}
 
         logging.info(
-            "ImageProcess iniciado. Device: %s, torch_dtype: %s", 
-            self.device, self.torch_dtype
+            "ImageProcess iniciado. Device: %s, torch_dtype: %s",
+            self.device,
+            self.torch_dtype,
         )
         logging.info("Modelo padrão configurado para: %s", self.model_id)
 
@@ -78,7 +79,7 @@ class ImageProcess:
 
     def load_model(
         self, model_id: str, model_type: Optional[str] = "image-text-to-text"
-    ) -> None:
+    ) -> Optional[object]:
         """
         Carrega o pipeline correspondente ao model_id e armazena em self.models.
         Se já estiver carregado, apenas retorna o pipeline existente.
@@ -96,7 +97,7 @@ class ImageProcess:
         if model_id in self.models:
             logging.info(
                 "Modelo '%s' já está carregado. Retornando instância existente.",
-                model_id
+                model_id,
             )
             return self.models[model_id]
 
@@ -138,9 +139,10 @@ class ImageProcess:
                 logging.warning(
                     "Llama-3.2-11B-Vision-Instruct requires high memory. Using Ollama instead."
                 )
-                
+
                 warnings.warn(
-                    "Using Ollama for 'meta-llama/Llama-3.2-11B-Vision-Instruct' due to memory constraints.",
+                    "Using Ollama for 'meta-llama/Llama-3.2-11B-Vision-Instruct' "
+                    "due to memory constraints.",
                     category=UserWarning,
                 )
 
@@ -162,7 +164,8 @@ class ImageProcess:
 
             else:
                 warnings.warn(
-                    f"ImageProcess não suporta o modelo '{model_id}'. Usando carregamento genérico.",
+                    f"ImageProcess não suporta o modelo '{model_id}'. "
+                    "Usando carregamento genérico.",
                     category=UserWarning,
                 )
 
@@ -186,6 +189,8 @@ class ImageProcess:
             raise RuntimeError(
                 f"Falha ao carregar o modelo {model_id}. Erro: {str(exc)}"
             ) from exc
+        
+        return None
 
     def make_input_prompt(
         self, question: str, image: Image.Image
@@ -279,17 +284,17 @@ class ImageProcess:
     def check_image(self, image_or_file: Union[str, bytes]) -> Image.Image:
         """
         Validate and load an image from file path or bytes.
-        
+
         Parameters:
         -----------
         image_or_file : Union[str, bytes]
             Image file path or image content as bytes.
-            
+
         Returns:
         --------
         Image.Image
             Loaded PIL Image object.
-            
+
         Raises:
         -------
         FileNotFoundError
@@ -458,6 +463,5 @@ class ImageProcess:
             error_trace = traceback.format_exc()
             logging.error("Erro durante inferência: %s", error_trace)
             raise RuntimeError(
-                f"Falha na geração de texto a partir da imagem. "
-                f"Erro: {error_trace}"
+                f"Falha na geração de texto a partir da imagem. Erro: {error_trace}"
             ) from exc

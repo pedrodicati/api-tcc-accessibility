@@ -16,10 +16,10 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 class AudioProcess:
     """
     Audio processing class for speech-to-text transcription.
-    
+
     This class manages speech recognition models and provides functionality
     to transcribe audio content using Hugging Face transformers.
-    
+
     Attributes:
     -----------
     device : torch.device
@@ -31,11 +31,11 @@ class AudioProcess:
     models : Dict[str, pipeline]
         Dictionary storing loaded model pipelines.
     """
-    
+
     def __init__(self, default_model_id: str = "openai/whisper-small") -> None:
         """
         Initialize the AudioProcess with a default speech recognition model.
-        
+
         Parameters:
         -----------
         default_model_id : str
@@ -48,8 +48,9 @@ class AudioProcess:
         self.models: Dict[str, pipeline] = {}
 
         logging.info(
-            "AudioProcess iniciado. Device: %s, torch_dtype: %s", 
-            self.device, self.torch_dtype
+            "AudioProcess iniciado. Device: %s, torch_dtype: %s",
+            self.device,
+            self.torch_dtype,
         )
         logging.info("Modelo padrão configurado para: %s", self.default_model_id)
 
@@ -74,7 +75,7 @@ class AudioProcess:
         if model_id in self.models:
             logging.info(
                 "Modelo '%s' já está carregado. Retornando instância existente.",
-                model_id
+                model_id,
             )
             return self.models[model_id]
 
@@ -107,7 +108,9 @@ class AudioProcess:
             return pipe
         except Exception as exc:
             logging.error("Error loading model '%s': %s", model_id, str(exc))
-            raise RuntimeError(f"Failed to load model {model_id}. Error: {str(exc)}") from exc
+            raise RuntimeError(
+                f"Failed to load model {model_id}. Error: {str(exc)}"
+            ) from exc
 
     def check_audio(self, audio_or_file: Union[str, bytes]) -> bytes:
         """
@@ -141,19 +144,19 @@ class AudioProcess:
     ) -> Dict[str, str]:
         """
         Transcribe audio content to text using speech recognition models.
-        
+
         Parameters:
         -----------
         audio_or_file : Union[str, bytes]
             Audio file path or audio content as bytes.
         model_id : Optional[str]
             Model ID to use for transcription. Uses default if None.
-            
+
         Returns:
         --------
         Dict[str, str]
             Dictionary containing the transcribed text.
-            
+
         Raises:
         -------
         RuntimeError
@@ -169,4 +172,6 @@ class AudioProcess:
             return pipe(audio)
         except Exception as exc:
             logging.error("Error transcribing audio: %s", str(exc))
-            raise RuntimeError(f"Failed to transcribe audio. Error: {str(exc)}") from exc
+            raise RuntimeError(
+                f"Failed to transcribe audio. Error: {str(exc)}"
+            ) from exc

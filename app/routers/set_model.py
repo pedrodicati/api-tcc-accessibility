@@ -16,13 +16,15 @@ router = APIRouter()
 
 
 @router.post("/set_model")
-async def set_model(request: Request, new_model_id: str, model_type: str) -> Dict[str, Any]:
+async def set_model(
+    request: Request, new_model_id: str, model_type: str
+) -> Dict[str, Any]:
     """
     Change the AI model used for image processing.
-    
+
     This endpoint allows dynamic switching between different image-to-text
     models during runtime, clearing GPU memory and loading the new model.
-    
+
     Parameters:
     -----------
     request : Request
@@ -31,12 +33,12 @@ async def set_model(request: Request, new_model_id: str, model_type: str) -> Dic
         The identifier of the new model to load.
     model_type : str
         The type of model being loaded.
-        
+
     Returns:
     --------
     Dict[str, Any]
         Dictionary containing a success message with the new model ID.
-        
+
     Raises:
     -------
     HTTPException
@@ -47,9 +49,7 @@ async def set_model(request: Request, new_model_id: str, model_type: str) -> Dic
         torch.cuda.empty_cache()
 
         # Carrega outro modelo, substitui o anterior
-        image_processor = ImageProcess(
-            model_id=new_model_id, model_type=model_type
-        )
+        image_processor = ImageProcess(model_id=new_model_id, model_type=model_type)
         request.app.state.image_processor = image_processor
 
         return {"message": f"Modelo trocado para {new_model_id}"}

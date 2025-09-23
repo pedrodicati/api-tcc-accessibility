@@ -16,20 +16,20 @@ from PIL import Image
 class OllamaProcess:
     """
     Ollama process handler for vision models.
-    
+
     This class provides an interface to interact with Ollama vision models
     for image-to-text processing tasks.
-    
+
     Attributes:
     -----------
     model : str
         The name of the Ollama model to use.
     """
-    
+
     def __init__(self, model: str = "llama3.2-vision") -> None:
         """
         Initialize the Ollama process with a specified model.
-        
+
         Parameters:
         -----------
         model : str
@@ -43,7 +43,7 @@ class OllamaProcess:
     ) -> List[Dict[str, str]]:
         """
         Create a formatted prompt for the Ollama model with image and text.
-        
+
         Parameters:
         -----------
         prompt : str
@@ -52,7 +52,7 @@ class OllamaProcess:
             The PIL Image to include in the prompt.
         system_prompt : Optional[str]
             Optional system prompt to provide context.
-            
+
         Returns:
         --------
         List[Dict[str, str]]
@@ -86,12 +86,12 @@ class OllamaProcess:
     def predict_model(self, prompt: List[Dict[str, str]]) -> str:
         """
         Generate a response from the Ollama model using the formatted prompt.
-        
+
         Parameters:
         -----------
         prompt : List[Dict[str, str]]
             The formatted messages for the model.
-            
+
         Returns:
         --------
         str

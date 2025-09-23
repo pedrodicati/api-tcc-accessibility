@@ -35,10 +35,10 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased")
 class ImageCaptionEvaluator:
     """
     Evaluator for image captioning models using various NLP metrics.
-    
+
     This class provides functionality to evaluate image captioning models
     against reference captions using BLEU, ROUGE, METEOR, and BERTScore metrics.
-    
+
     Attributes:
     -----------
     api_url : str
@@ -52,11 +52,13 @@ class ImageCaptionEvaluator:
     results : List
         List to store evaluation results.
     """
-    
-    def __init__(self, api_url: str, num_samples: int = 10, name_model: str = "") -> None:
+
+    def __init__(
+        self, api_url: str, num_samples: int = 10, name_model: str = ""
+    ) -> None:
         """
         Initialize the evaluator with API URL and configuration.
-        
+
         Parameters:
         -----------
         api_url : str
@@ -77,7 +79,7 @@ class ImageCaptionEvaluator:
     def get_cpu_gpu_usage(self) -> Tuple[float, float, float]:
         """
         Get current CPU and GPU usage statistics.
-        
+
         Returns:
         --------
         Tuple[float, float, float]
@@ -93,7 +95,7 @@ class ImageCaptionEvaluator:
     def evaluate(self) -> None:
         """
         Evaluate the image captioning model on a subset of the dataset.
-        
+
         This method processes images from the dataset, generates captions,
         and computes various NLP metrics for evaluation.
         """
@@ -134,7 +136,7 @@ class ImageCaptionEvaluator:
                     generated_caption, reference_captions[0]
                 )[0]["rouge-l"]["f"]
                 meteor = meteor_score([reference_captions], [generated_caption])
-                precision, recall, bert_f1 = score(
+                _, _, bert_f1 = score(
                     [generated_caption],
                     [reference_captions[0]],
                     lang="pt",
@@ -158,8 +160,7 @@ class ImageCaptionEvaluator:
                 )
             except Exception as exc:
                 logging.error(
-                    "Erro ao processar imagem %s: %s", 
-                    example['filename'], str(exc)
+                    "Erro ao processar imagem %s: %s", example["filename"], str(exc)
                 )
 
         self.save_results()
@@ -167,12 +168,12 @@ class ImageCaptionEvaluator:
     def image_to_bytes(self, image: Image.Image) -> bytes:
         """
         Convert PIL Image to bytes in JPEG format.
-        
+
         Parameters:
         -----------
         image : Image.Image
             PIL Image object to convert.
-            
+
         Returns:
         --------
         bytes
@@ -185,14 +186,14 @@ class ImageCaptionEvaluator:
     def get_generated_caption(self, img_bytes: bytes, audio: io.BytesIO) -> str:
         """
         Get caption from API for given image and audio.
-        
+
         Parameters:
         -----------
         img_bytes : bytes
             Image data as bytes.
         audio : io.BytesIO
             Audio data as BytesIO object.
-            
+
         Returns:
         --------
         str
@@ -217,7 +218,7 @@ class ImageCaptionEvaluator:
     def save_results(self) -> None:
         """
         Save evaluation results to a CSV file.
-        
+
         The results are saved to a CSV file named with the model name.
         """
         data_frame = pd.DataFrame(self.results)
