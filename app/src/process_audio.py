@@ -1,12 +1,46 @@
-import torch
-import os
+"""
+Audio processing module for speech-to-text functionality.
+
+This module provides functionality to transcribe audio content using
+Hugging Face transformers and PyTorch, supporting multiple speech recognition models.
+"""
+
 import logging
+import os
+from typing import Dict, Optional, Union
+
+import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-from typing import Union, Dict, Optional
 
 
 class AudioProcess:
-    def __init__(self, default_model_id: str = "openai/whisper-small"):
+    """
+    Audio processing class for speech-to-text transcription.
+
+    This class manages speech recognition models and provides functionality
+    to transcribe audio content using Hugging Face transformers.
+
+    Attributes:
+    -----------
+    device : torch.device
+        The device (CPU or CUDA) for running inference.
+    torch_dtype : torch.dtype
+        The data type for tensors.
+    default_model_id : str
+        The default model identifier for speech recognition.
+    models : Dict[str, pipeline]
+        Dictionary storing loaded model pipelines.
+    """
+
+    def __init__(self, default_model_id: str = "openai/whisper-small") -> None:
+        """
+        Initialize the AudioProcess with a default speech recognition model.
+
+        Parameters:
+        -----------
+        default_model_id : str
+            The default model identifier to use for speech recognition.
+        """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
@@ -14,9 +48,11 @@ class AudioProcess:
         self.models: Dict[str, pipeline] = {}
 
         logging.info(
-            f"AudioProcess iniciado. Device: {self.device}, torch_dtype: {self.torch_dtype}"
+            "AudioProcess iniciado. Device: %s, torch_dtype: %s",
+            self.device,
+            self.torch_dtype,
         )
-        logging.info(f"Modelo padrão configurado para: {self.default_model_id}")
+        logging.info("Modelo padrão configurado para: %s", self.default_model_id)
 
         self.load_model(default_model_id)
 
@@ -38,12 +74,13 @@ class AudioProcess:
 
         if model_id in self.models:
             logging.info(
-                f"Modelo '{model_id}' já está carregado. Retornando instância existente."
+                "Modelo '%s' já está carregado. Retornando instância existente.",
+                model_id,
             )
             return self.models[model_id]
 
         # Se não estiver carregado, criar uma nova pipeline
-        logging.info(f"Carregando novo modelo: {model_id}")
+        logging.info("Carregando novo modelo: %s", model_id)
 
         processor = AutoProcessor.from_pretrained(model_id)
 
@@ -69,11 +106,13 @@ class AudioProcess:
             logging.info("Model Speech Recognitivo loaded successfully.")
 
             return pipe
-        except Exception as e:
-            logging.error(f"Error loading model '{model_id}': {e}")
-            raise RuntimeError(f"Failed to load model {model_id}. Error: {str(e)}")
+        except Exception as exc:
+            logging.error("Error loading model '%s': %s", model_id, str(exc))
+            raise RuntimeError(
+                f"Failed to load model {model_id}. Error: {str(exc)}"
+            ) from exc
 
-    def check_audio(self, audio_or_file) -> Union[str, bytes]:
+    def check_audio(self, audio_or_file: Union[str, bytes]) -> bytes:
         """
         Verifica se o áudio é uma string ou um arquivo e retorna o conteúdo do áudio.
 
@@ -84,24 +123,45 @@ class AudioProcess:
 
         Retorna:
         --------
-        Union[str, bytes]
-            Conteúdo do áudio.
+        bytes
+            Conteúdo do áudio em bytes.
         """
 
-        if not isinstance(audio_or_file, str) and not isinstance(audio_or_file, bytes):
+        if not isinstance(audio_or_file, (str, bytes)):
             raise ValueError("Audio must be a file path or bytes")
 
         if isinstance(audio_or_file, str):
             if not os.path.exists(audio_or_file):
                 raise FileNotFoundError(f"File not found: {audio_or_file}")
 
-            audio_or_file = open(audio_or_file, "rb").read()
+            with open(audio_or_file, "rb") as audio_file:
+                audio_or_file = audio_file.read()
 
         return audio_or_file
 
     def transcribe(
         self, audio_or_file: Union[str, bytes], model_id: Optional[str] = None
     ) -> Dict[str, str]:
+        """
+        Transcribe audio content to text using speech recognition models.
+
+        Parameters:
+        -----------
+        audio_or_file : Union[str, bytes]
+            Audio file path or audio content as bytes.
+        model_id : Optional[str]
+            Model ID to use for transcription. Uses default if None.
+
+        Returns:
+        --------
+        Dict[str, str]
+            Dictionary containing the transcribed text.
+
+        Raises:
+        -------
+        RuntimeError
+            If transcription fails.
+        """
         audio = self.check_audio(audio_or_file)
 
         # Define o modelo a ser usado
@@ -110,6 +170,8 @@ class AudioProcess:
 
         try:
             return pipe(audio)
-        except Exception as e:
-            logging.error(f"Error transcribing audio: {e}")
-            raise RuntimeError(f"Failed to transcribe audio. Error: {str(e)}")
+        except Exception as exc:
+            logging.error("Error transcribing audio: %s", str(exc))
+            raise RuntimeError(
+                f"Failed to transcribe audio. Error: {str(exc)}"
+            ) from exc
