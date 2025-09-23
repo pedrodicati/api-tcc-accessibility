@@ -1,26 +1,32 @@
-import torch
-import logging
-import re
-import io
-import os
-import gc
-import warnings
-import traceback
+"""
+Image processing module for vision-language models.
 
+This module provides functionality to process images using various vision-language
+models for accessibility applications, particularly for assisting visually impaired users.
+"""
+
+import gc
+import io
+import logging
+import os
+import re
+import traceback
+import warnings
+from typing import Dict, List, Optional, Tuple, Union
+
+import torch
 from PIL import Image
 from transformers import (
-    LlavaNextProcessor,
-    LlavaNextForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
-    MllamaForConditionalGeneration,
     AutoModelForImageTextToText,
     AutoProcessor,
     BitsAndBytesConfig,
+    LlavaNextForConditionalGeneration,
+    LlavaNextProcessor,
+    Qwen2_5_VLForConditionalGeneration,
 )
 from qwen_vl_utils import process_vision_info
-from .ollama_process import OllamaProcess
 
-from typing import Union, List, Dict, Optional, Tuple
+from .ollama_process import OllamaProcess
 
 logging.basicConfig(level=logging.INFO)
 
@@ -63,9 +69,10 @@ class ImageProcess:
         self.models = {}
 
         logging.info(
-            f"ImageProcess iniciado. Device: {self.device}, torch_dtype: {self.torch_dtype}"
+            "ImageProcess iniciado. Device: %s, torch_dtype: %s", 
+            self.device, self.torch_dtype
         )
-        logging.info(f"Modelo padrão configurado para: {self.model_id}")
+        logging.info("Modelo padrão configurado para: %s", self.model_id)
 
         self.load_model(model_id)
 
@@ -88,12 +95,13 @@ class ImageProcess:
         """
         if model_id in self.models:
             logging.info(
-                f"Modelo '{model_id}' já está carregado. Retornando instância existente."
+                "Modelo '%s' já está carregado. Retornando instância existente.",
+                model_id
             )
             return self.models[model_id]
 
         # Se não estiver carregado, criar uma nova pipeline
-        logging.info(f"Carregando novo modelo: {model_id}")
+        logging.info("Carregando novo modelo: %s", model_id)
 
         quantization_config = None
         # Se estivermos em GPU, podemos configurar BitsAndBytes
@@ -126,34 +134,19 @@ class ImageProcess:
                 self.model.to(self.device)
 
             elif self.model_id == "meta-llama/Llama-3.2-11B-Vision-Instruct":
-                try:
-                    # erro adicionado pois a quantidade de memória para carregar o
-                    # llama 3.2 é muito grande, então forçamos um erro para carregar
-                    # o modelo via ollama, que é mais leve
-                    raise Exception("Erro forçado")
-                    self.processor = AutoProcessor.from_pretrained(self.model_id)
+                # Use Ollama for Llama 3.2 due to high memory requirements
+                logging.warning(
+                    "Llama-3.2-11B-Vision-Instruct requires high memory. Using Ollama instead."
+                )
+                
+                warnings.warn(
+                    "Using Ollama for 'meta-llama/Llama-3.2-11B-Vision-Instruct' due to memory constraints.",
+                    category=UserWarning,
+                )
 
-                    self.model = MllamaForConditionalGeneration.from_pretrained(
-                        self.model_id,
-                        torch_dtype=self.torch_dtype,
-                        device_map="auto",
-                        # quantization_config=quantization_config,
-                        low_cpu_mem_usage=True,
-                        max_memory={0: "6GiB"},
-                    )
-                except Exception as e:
-                    logging.warning(
-                        "Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct':"
-                    )
-                    logging.warning(e)
-
-                    warnings.warn(
-                        "Erro ao carregar o modelo 'meta-llama/Llama-3.2-11B-Vision-Instruct'. Usando método com o Ollama.",
-                    )
-
-                    self.model = OllamaProcess(model="llama3.2-vision")
-                    self.processor = None
-                    self.switch_ollama = True
+                self.model = OllamaProcess(model="llama3.2-vision")
+                self.processor = None
+                self.switch_ollama = True
 
             elif self.model_id == "Qwen/Qwen2.5-VL-7B-Instruct":
                 self.processor = AutoProcessor.from_pretrained(self.model_id)
@@ -188,9 +181,11 @@ class ImageProcess:
                     low_cpu_mem_usage=True,
                 )
 
-        except Exception as e:
-            logging.error(f"Erro ao carregar o modelo '{model_id}': {e}")
-            raise RuntimeError(f"Falha ao carregar o modelo {model_id}. Erro: {str(e)}")
+        except Exception as exc:
+            logging.error("Erro ao carregar o modelo '%s': %s", model_id, str(exc))
+            raise RuntimeError(
+                f"Falha ao carregar o modelo {model_id}. Erro: {str(exc)}"
+            ) from exc
 
     def make_input_prompt(
         self, question: str, image: Image.Image
@@ -211,15 +206,19 @@ class ImageProcess:
         """
 
         system_prompt = (
-            "Você é um assistente virtual projetado para ajudar pessoas com deficiência visual "
-            "a compreenderem o ambiente ao seu redor de forma clara, objetiva e fiel. Sua principal tarefa "
-            "é descrever com precisão o que está presente na imagem fornecida, destacando detalhes importantes "
-            "que permitam ao usuário construir uma imagem mental do ambiente. Seja conciso e evite descrições excessivamente longas. "
-            "Concentre-se em informações relevantes, como objetos, pessoas, expressões faciais, cores e posições. "
-            "Somente mencione riscos ou perigos se eles estiverem visíveis na imagem, explicando de forma direta "
-            "o que é o risco e, se necessário, o que o usuário pode fazer para evitá-lo. "
-            "Se não houver riscos, foque exclusivamente na descrição fiel da cena. "
-            "Mantenha sempre um tom educado, objetivo e prestativo."
+            "Você é um assistente virtual projetado para ajudar pessoas com "
+            "deficiência visual a compreenderem o ambiente ao seu redor de forma "
+            "clara, objetiva e fiel. Sua principal tarefa é descrever com precisão "
+            "o que está presente na imagem fornecida, destacando detalhes importantes "
+            "que permitam ao usuário construir uma imagem mental do ambiente. "
+            "Seja conciso e evite descrições excessivamente longas. "
+            "Concentre-se em informações relevantes, como objetos, pessoas, "
+            "expressões faciais, cores e posições. Somente mencione riscos ou "
+            "perigos se eles estiverem visíveis na imagem, explicando de forma "
+            "direta o que é o risco e, se necessário, o que o usuário pode fazer "
+            "para evitá-lo. Se não houver riscos, foque exclusivamente na "
+            "descrição fiel da cena. Mantenha sempre um tom educado, objetivo "
+            "e prestativo."
         )
 
         chat = [
@@ -278,6 +277,26 @@ class ImageProcess:
         return output
 
     def check_image(self, image_or_file: Union[str, bytes]) -> Image.Image:
+        """
+        Validate and load an image from file path or bytes.
+        
+        Parameters:
+        -----------
+        image_or_file : Union[str, bytes]
+            Image file path or image content as bytes.
+            
+        Returns:
+        --------
+        Image.Image
+            Loaded PIL Image object.
+            
+        Raises:
+        -------
+        FileNotFoundError
+            If the image file path doesn't exist.
+        ValueError
+            If the image is invalid or empty.
+        """
         # Verifica se é string (caminho) ou bytes (arquivo binário)
         if isinstance(image_or_file, str):
             if not os.path.exists(image_or_file):
@@ -352,7 +371,7 @@ class ImageProcess:
 
         # Monta o prompt
         prompt, chat = self.make_input_prompt(question, image)
-        logging.info(f"Realizando inferência com o modelo '{self.model_id}'...")
+        logging.info("Realizando inferência com o modelo '%s'...", self.model_id)
 
         gc.collect()
         torch.cuda.empty_cache()
@@ -417,7 +436,8 @@ class ImageProcess:
 
             else:
                 warnings.warn(
-                    f"Modelo '{self.model_id}' não possui inferência implementada. Usando inferência genérica.",
+                    f"Modelo '{self.model_id}' não possui inferência implementada. "
+                    "Usando inferência genérica.",
                     category=UserWarning,
                 )
 
@@ -434,8 +454,10 @@ class ImageProcess:
                     )
 
             return self.process_output_text(generated_text)
-        except Exception:
-            logging.error(f"Erro durante inferência: {traceback.format_exc()}")
+        except Exception as exc:
+            error_trace = traceback.format_exc()
+            logging.error("Erro durante inferência: %s", error_trace)
             raise RuntimeError(
-                f"Falha na geração de texto a partir da imagem. Erro: {traceback.format_exc()}"
-            )
+                f"Falha na geração de texto a partir da imagem. "
+                f"Erro: {error_trace}"
+            ) from exc

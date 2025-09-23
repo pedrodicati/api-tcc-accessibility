@@ -1,9 +1,18 @@
+"""
+Middleware for saving request and response data.
+
+This module provides middleware that automatically saves uploaded files
+and API responses to disk for analysis and debugging purposes.
+"""
+
+import logging
+import os
+from datetime import datetime
+from typing import Any, Callable, Optional
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from datetime import datetime
-import os
-import logging
 
 # Diretório base para salvar os arquivos
 SAVE_DIR = "processed_files"
@@ -11,8 +20,31 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 
 class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        logging.info(f"Requisição recebida: {request.url.path}")
+    """
+    Middleware for saving request files and response data to disk.
+    
+    This middleware automatically captures uploaded image and audio files
+    along with API responses for analysis and debugging purposes.
+    """
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """
+        Process HTTP request and save relevant data to disk.
+        
+        Parameters:
+        -----------
+        request : Request
+            The incoming HTTP request.
+        call_next : Callable
+            The next middleware or endpoint handler.
+            
+        Returns:
+        --------
+        Response
+            The HTTP response from the endpoint.
+        """
+        request_path = request.url.path
+        logging.info("Requisição recebida: %s", request_path)
 
         body = await request.body()
 
@@ -21,26 +53,30 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
 
         request = Request(request.scope, receive)
 
+        image: Optional[Any] = None
+        audio: Optional[Any] = None
+        
         try:
-            if "multipart/form-data" in request.headers.get("content-type", ""):
+            content_type = request.headers.get("content-type", "")
+            if "multipart/form-data" in content_type:
                 form = await request.form()
                 image = form.get("image")
                 audio = form.get("audio")
 
-                logging.info(
-                    f"Imagem recebida: {image.filename if image else 'Nenhuma'}"
-                )
-                logging.info(f"Áudio recebido: {audio.filename if audio else 'Nenhum'}")
+                image_filename = image.filename if image else 'Nenhuma'
+                audio_filename = audio.filename if audio else 'Nenhum'
+                
+                logging.info("Imagem recebida: %s", image_filename)
+                logging.info("Áudio recebido: %s", audio_filename)
             else:
-                image = audio = None
                 logging.info("Requisição não é do tipo multipart/form-data.")
-        except Exception as e:
-            logging.error(f"Erro ao processar o formulário: {e}")
+        except Exception as exc:
+            logging.error("Erro ao processar o formulário: %s", str(exc))
             image = audio = None
 
         response = await call_next(request)
 
-        if image and audio and "/analyze-image-audio-query" in request.url.path:
+        if image and audio and "/analyze-image-audio-query" in request_path:
             logging.info("Salvando arquivos...")
 
             # Criar a pasta com o timestamp
@@ -52,11 +88,12 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                 # Salvar o áudio
                 audio_content = await audio.read()
                 audio_path = os.path.join(folder_path, "audio.wav")
-                with open(audio_path, "wb") as f:
-                    f.write(audio_content)
-                logging.info(
-                    f"Áudio salvo em: {audio_path} (tamanho: {len(audio_content)} bytes)"
-                )
+                with open(audio_path, "wb") as audio_file:
+                    audio_file.write(audio_content)
+                    
+                audio_size = len(audio_content)
+                logging.info("Áudio salvo em: %s (tamanho: %d bytes)", 
+                           audio_path, audio_size)
 
                 # Salvar a imagem
                 image_content = await image.read()
@@ -64,11 +101,12 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                     os.path.splitext(image.filename)[-1] or ".jpg"
                 )  # Preservar a extensão original
                 image_path = os.path.join(folder_path, f"image{image_extension}")
-                with open(image_path, "wb") as f:
-                    f.write(image_content)
-                logging.info(
-                    f"Imagem salva em: {image_path} (tamanho: {len(image_content)} bytes)"
-                )
+                with open(image_path, "wb") as image_file:
+                    image_file.write(image_content)
+                    
+                image_size = len(image_content)
+                logging.info("Imagem salva em: %s (tamanho: %d bytes)", 
+                           image_path, image_size)
 
                 # Salvar a resposta da API
                 response_body = b""
@@ -76,11 +114,12 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                     response_body += chunk
 
                 response_path = os.path.join(folder_path, "response.json")
-                with open(response_path, "wb") as f:
-                    f.write(response_body)
-                logging.info(
-                    f"Resposta salva em: {response_path} (tamanho: {len(response_body)} bytes)"
-                )
+                with open(response_path, "wb") as response_file:
+                    response_file.write(response_body)
+                    
+                response_size = len(response_body)
+                logging.info("Resposta salva em: %s (tamanho: %d bytes)", 
+                           response_path, response_size)
 
                 # Recriar a resposta para o cliente
                 response = Response(
@@ -89,9 +128,9 @@ class SaveRequestResponseMiddleware(BaseHTTPMiddleware):
                     headers=dict(response.headers),
                     media_type=response.media_type,
                 )
-            except Exception as e:
-                logging.error(f"Erro ao salvar os arquivos: {e}")
+            except Exception as exc:
+                logging.error("Erro ao salvar os arquivos: %s", str(exc))
         else:
-            logging.error("Nenhum arquivo ou endpoint incompatível para salvar.")
+            logging.info("Nenhum arquivo ou endpoint incompatível para salvar.")
 
         return response
