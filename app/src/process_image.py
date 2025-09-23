@@ -189,7 +189,7 @@ class ImageProcess:
             raise RuntimeError(
                 f"Falha ao carregar o modelo {model_id}. Erro: {str(exc)}"
             ) from exc
-        
+
         return None
 
     def make_input_prompt(

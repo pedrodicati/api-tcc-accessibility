@@ -63,8 +63,8 @@ async def create_question_image(
             question=transcribed_audio,
         )
 
-        # TODO: salvar imagem, audio e texto em disco para análise
-        # da pra fazer via middleware, ver depois
+        # NOTE: Image, audio and response data are automatically saved to disk
+        # by the SaveRequestResponseMiddleware for analysis purposes
 
         return {
             "transcribed_audio": transcribed_audio,
